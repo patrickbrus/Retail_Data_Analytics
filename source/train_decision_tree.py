@@ -70,7 +70,7 @@ if __name__ == '__main__':
         },
         n_iter=n_iter,
         cv=n_folds
-)
+    )
     
     # Train the model
     opt.fit(train_x, train_y)

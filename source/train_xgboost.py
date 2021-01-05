@@ -3,14 +3,16 @@ from __future__ import print_function
 import argparse
 import os
 import pandas as pd
+import numpy as np
 
 # sklearn.externals.joblib is deprecated in 0.21 and will be removed in 0.23. 
 # from sklearn.externals import joblib
 # Import joblib package directly
 import joblib
 
-from sklearn.ensemble import RandomForestRegressor
-from skopt import BayesSearchCV
+from xgboost import XGBRegressor
+from bayes_opt import BayesianOptimization
+from sklearn.model_selection import cross_val_score
 
 # Provided model load function
 def model_fn(model_dir):
@@ -62,26 +64,28 @@ if __name__ == '__main__':
     train_y = train_data.iloc[:,0]
     train_x = train_data.iloc[:,1:]
     
-
-    # Define a model 
-    forest = RandomForestRegressor(criterion="mse")
+    hyperparameters = {
+        'learning_rate': (0.01, 1.0),
+        'n_estimators': (100, 1000),
+        'max_depth': (3,10),
+        'subsample': (1.0, 1.0),  # Change for big datasets
+        'colsample': (1.0, 1.0),  # Change for datasets with lots of features
+        'gamma': (0, 5)
+    }
     
-    # Create the Bayesion optimization object
-    opt = BayesSearchCV(
-        forest,
-        {
-            "max_depth": (5, 15),
-            "n_estimators": (10, 100),
-            "bootstrap": [True, False]
-        },
-        n_iter=n_iter,
-        cv=n_folds
-    )
+    # function for creating and training a XGBoost classifier
+    # return: mse
+    def xgboost_hyper_param(learning_rate, n_estimators, max_depth, subsample, colsample, gamma):
+        max_depth = int(max_depth)
+        n_estimators = int(n_estimators)
+        clf = XGBRegressor(
+                            max_depth=max_depth,
+                            learning_rate=learning_rate,
+                            n_estimators=n_estimators,
+                            gamma=gamma)
+        return np.mean(cross_val_score(clf, train_x, train_y, cv=n_folds, scoring='mse'))
     
-    # Train the model
-    opt.fit(train_x, train_y)
-    
-    model = opt.best_estimator_
+    optimizer = BayesianOptimization(f=xgboost_hyper_param, pbounds=hyperparameters)
     
     # Save the trained model
     joblib.dump(model, os.path.join(args.model_dir, "model.joblib"))
