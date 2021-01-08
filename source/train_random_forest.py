@@ -39,13 +39,9 @@ if __name__ == '__main__':
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
     parser.add_argument('--data-dir', type=str, default=os.environ['SM_CHANNEL_TRAIN'])
     
-    parser.add_argument("--n-estimators", type=int, default=10)
-    parser.add_argument('--criterion', type=str, default="mse")
-    parser.add_argument("--max-depth", type=int, default=5)
-    parser.add_argument("--bootstrap", type=bool, default=True)
-    
     parser.add_argument("--n-iter", type=int, default=50)
     parser.add_argument("--n-folds", type=int, default=3)
+    parser.add_argument("--n-jobs", type=int, default=None)
     
     # args holds all passed-in arguments
     args = parser.parse_args()
@@ -57,6 +53,7 @@ if __name__ == '__main__':
     # read in other hyperparameters
     n_iter = args.n_iter
     n_folds = args.n_folds
+    n_jobs = args.n_jobs
 
     # Labels are in the first column
     train_y = train_data.iloc[:,0]
@@ -64,14 +61,14 @@ if __name__ == '__main__':
     
 
     # Define a model 
-    forest = RandomForestRegressor(criterion="mse")
+    forest = RandomForestRegressor(criterion="mse", n_jobs=n_jobs)
     
     # Create the Bayesion optimization object
     opt = BayesSearchCV(
         forest,
         {
             "max_depth": (5, 15),
-            "n_estimators": (10, 100),
+            "n_estimators": (10, 50),
             "bootstrap": [True, False]
         },
         n_iter=n_iter,
